@@ -162,7 +162,7 @@ Open the GeoTIFF in QGIS or another GIS tool and verify:
 Once a named region runs successfully, use the dedicated replay runner to isolate historical outputs by region and UTC time:
 
 ```bash
-bash examples/replay-region.sh \
+python examples/replay-region.py \
   example-mountain-region \
   "2026-08-28 12:00"
 ```
