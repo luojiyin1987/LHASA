@@ -18,6 +18,7 @@ set -euo pipefail
 #   LEAD_DAYS        Forecast lead days (default: 0, NRT only)
 #   FORMAT           Output format accepted by lhasa.py (default: tif)
 #   THREADS          XGBoost thread count (default: 4)
+#   OVERWRITE        Set to 1 to replace existing output files (default: 0)
 #   LHASA_DATA_PATH  Directory containing static/, imerg/, smap/, etc.
 #                    (default: repository root)
 #   OUTPUT_PATH      Output directory (default: LHASA_DATA_PATH)
@@ -89,8 +90,14 @@ fi
 LEAD_DAYS="${LEAD_DAYS:-0}"
 FORMAT="${FORMAT:-tif}"
 THREADS="${THREADS:-4}"
+OVERWRITE="${OVERWRITE:-0}"
 LHASA_DATA_PATH="${LHASA_DATA_PATH:-${REPO_ROOT}}"
 OUTPUT_PATH="${OUTPUT_PATH:-${LHASA_DATA_PATH}}"
+
+if [[ "${OVERWRITE}" != "0" && "${OVERWRITE}" != "1" ]]; then
+  printf 'OVERWRITE must be 0 or 1, got: %s\n' "${OVERWRITE}" >&2
+  exit 2
+fi
 
 mkdir -p \
   "${OUTPUT_PATH}/nrt/hazard/tif" \
@@ -111,6 +118,10 @@ args=(
   --threads "${THREADS}"
 )
 
+if [[ "${OVERWRITE}" == "1" ]]; then
+  args+=(--overwrite)
+fi
+
 if [[ -n "${DATE:-}" ]]; then
   args+=(--date "${DATE}")
 fi
@@ -120,7 +131,7 @@ if [[ -n "${REGION_NAME:-}" ]]; then
 fi
 printf 'Running LHASA for bbox W=%s S=%s E=%s N=%s\n' \
   "${WEST}" "${SOUTH}" "${EAST}" "${NORTH}"
-printf 'Lead days: %s, format: %s, output: %s\n' \
-  "${LEAD_DAYS}" "${FORMAT}" "${OUTPUT_PATH}"
+printf 'Lead days: %s, format: %s, overwrite: %s, output: %s\n' \
+  "${LEAD_DAYS}" "${FORMAT}" "${OVERWRITE}" "${OUTPUT_PATH}"
 
 exec "${args[@]}"
