@@ -157,8 +157,20 @@ Open the GeoTIFF in QGIS or another GIS tool and verify:
 3. nodata/masked regions look reasonable;
 4. repeated runs for the same region, date, and inputs produce the expected baseline output.
 
+## 9. Build a historical replay timeline
+
+Once a named region runs successfully, use the dedicated replay runner to isolate historical outputs by region and UTC time:
+
+```bash
+bash examples/replay-region.sh \
+  example-mountain-region \
+  "2026-08-28 12:00"
+```
+
+The replay runner writes into `runs/<region>/<time>/` and creates a `run.json` manifest after a successful LHASA run. See [`historical-replay.md`](historical-replay.md) for the output layout, provenance fields, and an example T-30/T-14/T-7/T-3/T-1 event timeline.
+
 ## Why start here?
 
 Regional research becomes difficult to validate if model changes, new satellite inputs, and data-pipeline changes are introduced at the same time. This workflow intentionally keeps NASA's existing LHASA model untouched and establishes a reproducible reference run first.
 
-A useful next step is to build historical replay around this baseline, then compare additional public Earth-observation signals—such as Sentinel-1 InSAR deformation—against known events.
+Historical replay provides the next evidence layer: it lets known events be studied across several pre-event dates before additional public Earth-observation signals—such as Sentinel-1 InSAR deformation—are introduced.
