@@ -17,7 +17,7 @@ conda activate lhasa
 The replay command requires a checked-in region name and a UTC time in the exact `YYYY-MM-DD HH:MM` format:
 
 ```bash
-bash examples/replay-region.sh \
+python examples/replay-region.py \
   example-mountain-region \
   "2026-08-28 12:00"
 ```
@@ -47,7 +47,7 @@ If you need a different root—for example, to compare the same region and date 
 
 ```bash
 RUNS_ROOT="$PWD/runs-baseline" \
-  bash examples/replay-region.sh example-mountain-region "2026-08-28 12:00"
+  python examples/replay-region.py example-mountain-region "2026-08-28 12:00"
 ```
 
 Existing LHASA output files are still protected by default. `OVERWRITE=1` remains an explicit opt-in when replacing an existing replay is intentional.
@@ -60,7 +60,7 @@ After a successful LHASA run, the replay runner writes `run.json`. The manifest 
 - SHA256 of the region configuration;
 - requested UTC time and stable run key;
 - output format, thread count, and overwrite setting;
-- repository Git commit and whether the working tree was dirty;
+- repository Git commit and whether the working tree was dirty before replay outputs were created;
 - SHA256 of `model.json` when present;
 - resolved data and output paths.
 
@@ -98,6 +98,8 @@ Example shape:
 
 The manifest does **not** yet hash every downloaded IMERG or SMAP asset. It should therefore be treated as a reproducibility record for the requested experiment and local model/configuration state, not as a complete provenance ledger for all upstream Earth-observation inputs.
 
+The manifest is written only after `regional-run.sh` completes successfully. A failed data download or LHASA run therefore does not leave a `run.json` that looks like a successful replay.
+
 ## Build an event timeline
 
 For a known landslide or debris-flow event, replay several dates before the event rather than inspecting only the failure date. For example:
@@ -114,11 +116,11 @@ T0 event
 Run each time separately:
 
 ```bash
-bash examples/replay-region.sh my-study-area "2026-07-29 12:00"
-bash examples/replay-region.sh my-study-area "2026-08-14 12:00"
-bash examples/replay-region.sh my-study-area "2026-08-21 12:00"
-bash examples/replay-region.sh my-study-area "2026-08-25 12:00"
-bash examples/replay-region.sh my-study-area "2026-08-27 12:00"
+python examples/replay-region.py my-study-area "2026-07-29 12:00"
+python examples/replay-region.py my-study-area "2026-08-14 12:00"
+python examples/replay-region.py my-study-area "2026-08-21 12:00"
+python examples/replay-region.py my-study-area "2026-08-25 12:00"
+python examples/replay-region.py my-study-area "2026-08-27 12:00"
 ```
 
 This creates a stable baseline for later comparison with additional signals such as rainfall accumulation, soil moisture, Sentinel-1 deformation, or InSAR velocity/acceleration.
