@@ -95,6 +95,15 @@ THREADS_VALUE="${THREADS:-4}"
 OVERWRITE_VALUE="${OVERWRITE:-0}"
 LHASA_DATA_PATH_VALUE="${LHASA_DATA_PATH:-${REPO_ROOT}}"
 
+# Capture repository state before creating replay outputs so generated files do
+# not make a previously clean source tree appear dirty in the manifest.
+GIT_COMMIT="$(git -C "${REPO_ROOT}" rev-parse HEAD 2>/dev/null || true)"
+if [[ -n "$(git -C "${REPO_ROOT}" status --porcelain 2>/dev/null || true)" ]]; then
+  GIT_DIRTY=1
+else
+  GIT_DIRTY=0
+fi
+
 mkdir -p "${RUN_DIR}"
 
 printf 'Historical replay: %s at %s UTC\n' "${REGION_DISPLAY_NAME}" "${NORMALIZED_DATE}"
@@ -114,13 +123,6 @@ printf 'Replay output: %s\n' "${RUN_DIR}"
 
   bash "${SCRIPT_DIR}/regional-run.sh" "${REGION}"
 )
-
-GIT_COMMIT="$(git -C "${REPO_ROOT}" rev-parse HEAD 2>/dev/null || true)"
-if [[ -n "$(git -C "${REPO_ROOT}" status --porcelain 2>/dev/null || true)" ]]; then
-  GIT_DIRTY=1
-else
-  GIT_DIRTY=0
-fi
 
 python - \
   "${RUN_DIR}/run.json" \
