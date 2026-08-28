@@ -17,7 +17,21 @@ For an NRT-only regional run, the global forecast static data are required. Expo
 
 LHASA accepts a WGS84 bounding box using north, south, west, and east coordinates. Keep the first test region deliberately small so downloads, interpolation, and output inspection are easier to debug.
 
-Set the four required environment variables:
+For a reusable AOI, create a named configuration under `regions/`. Region files use a deliberately small `KEY=VALUE` format and may contain only `REGION_NAME`, `NORTH`, `SOUTH`, `WEST`, and `EAST`.
+
+An example is included at `regions/example-mountain-region.conf`:
+
+```text
+REGION_NAME=example-mountain-region
+NORTH=30.5
+SOUTH=29.5
+WEST=102.0
+EAST=103.5
+```
+
+The coordinates are only an example. Copy the file to a meaningful region name and replace them with the AOI you want to study.
+
+You can still run without a named configuration by exporting the four coordinates directly:
 
 ```bash
 export NORTH=30.5
@@ -26,16 +40,16 @@ export WEST=102.0
 export EAST=103.5
 ```
 
-The coordinates above are only an example. Replace them with the AOI you want to study.
-
 ## 3. Run an NRT-only baseline
 
-Activate the environment and invoke the regional runner from the repository root:
+Activate the environment and invoke the regional runner with a region name from the repository root:
 
 ```bash
 conda activate lhasa
-bash examples/regional-run.sh
+bash examples/regional-run.sh example-mountain-region
 ```
+
+The region name resolves to `regions/example-mountain-region.conf`. The runner parses only the supported configuration keys; it does not execute the file as shell code.
 
 The runner defaults to:
 
@@ -46,20 +60,37 @@ The runner defaults to:
 
 The script delegates to the existing `lhasa.py` CLI and passes the AOI through `--north`, `--south`, `--west`, and `--east`.
 
-## 4. Reproduce a specific run time
+To use only environment variables, omit the region name:
+
+```bash
+bash examples/regional-run.sh
+```
+
+## 4. Override a named region temporarily
+
+Environment variables take precedence over values in the named region. This is useful for expanding or shrinking an AOI without editing the shared configuration:
+
+```bash
+export NORTH=30.7
+bash examples/regional-run.sh example-mountain-region
+```
+
+The other bounds still come from the region configuration.
+
+## 5. Reproduce a specific run time
 
 For historical or reproducibility work, provide the UTC date accepted by `lhasa.py`:
 
 ```bash
 export DATE="2026-08-28 12:00"
-bash examples/regional-run.sh
+bash examples/regional-run.sh example-mountain-region
 ```
 
 Using an explicit date is preferable when comparing outputs across code or data changes. Availability of the corresponding upstream IMERG and SMAP products still determines whether the run can complete.
 
-## 5. Optional settings
+## 6. Optional settings
 
-You can override the defaults without editing the script:
+You can override the runtime defaults without editing the region configuration:
 
 ```bash
 export LEAD_DAYS=0
@@ -68,12 +99,38 @@ export THREADS=8
 export LHASA_DATA_PATH="$PWD"
 export OUTPUT_PATH="$PWD/output"
 
-bash examples/regional-run.sh
+bash examples/regional-run.sh example-mountain-region
 ```
 
 If `OUTPUT_PATH` is separate from the input data directory, the runner creates the standard NRT and forecast output subdirectories before starting LHASA.
 
-## 6. Inspect the result
+## 7. Add another named region
+
+Create another file under `regions/` using a filesystem-safe name, for example:
+
+```text
+regions/my-study-area.conf
+```
+
+Then define its WGS84 bounding box:
+
+```text
+REGION_NAME=my-study-area
+NORTH=...
+SOUTH=...
+WEST=...
+EAST=...
+```
+
+Run it by name:
+
+```bash
+bash examples/regional-run.sh my-study-area
+```
+
+Keeping AOIs in version control makes historical replay and comparisons easier to reproduce later.
+
+## 8. Inspect the result
 
 With the default `FORMAT=tif`, inspect the generated raster under the NRT hazard output directory, typically:
 
@@ -86,7 +143,7 @@ Open the GeoTIFF in QGIS or another GIS tool and verify:
 1. the raster covers only the requested AOI;
 2. the coordinate extent is correct;
 3. nodata/masked regions look reasonable;
-4. repeated runs for the same date and inputs produce the expected baseline output.
+4. repeated runs for the same region, date, and inputs produce the expected baseline output.
 
 ## Why start here?
 
