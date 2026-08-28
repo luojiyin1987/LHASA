@@ -56,6 +56,7 @@ The runner defaults to:
 - `LEAD_DAYS=0` — only the near-real-time LHASA product;
 - `FORMAT=tif` — GeoTIFF output for easy inspection in GIS software;
 - `THREADS=4`;
+- `OVERWRITE=0` — existing outputs are preserved by default;
 - repository root as both the LHASA data path and output path.
 
 The script delegates to the existing `lhasa.py` CLI and passes the AOI through `--north`, `--south`, `--west`, and `--east`.
@@ -88,6 +89,16 @@ bash examples/regional-run.sh example-mountain-region
 
 Using an explicit date is preferable when comparing outputs across code or data changes. Availability of the corresponding upstream IMERG and SMAP products still determines whether the run can complete.
 
+LHASA refuses to replace an existing hazard file by default. If you intentionally want to rerun the same region and date into the same output path, opt in to overwrite explicitly:
+
+```bash
+export DATE="2026-08-28 12:00"
+export OVERWRITE=1
+bash examples/regional-run.sh example-mountain-region
+```
+
+Leave `OVERWRITE` unset (or set it to `0`) when you want existing outputs to remain protected.
+
 ## 6. Optional settings
 
 You can override the runtime defaults without editing the region configuration:
@@ -96,6 +107,7 @@ You can override the runtime defaults without editing the region configuration:
 export LEAD_DAYS=0
 export FORMAT=tif
 export THREADS=8
+export OVERWRITE=0
 export LHASA_DATA_PATH="$PWD"
 export OUTPUT_PATH="$PWD/output"
 
