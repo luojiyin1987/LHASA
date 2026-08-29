@@ -25,6 +25,7 @@ import glob
 import io
 import logging
 import os.path
+import time
 import warnings
 import zipfile
 
@@ -38,6 +39,42 @@ from rasterio.enums import Resampling
 
 NO_DATA = -9999.0
 PPS_URL = "https://jsimpsonhttps.pps.eosdis.nasa.gov/imerg/"
+HTTP_CONNECT_TIMEOUT = 10
+HTTP_READ_TIMEOUT = 120
+HTTP_TIMEOUT = (HTTP_CONNECT_TIMEOUT, HTTP_READ_TIMEOUT)
+HTTP_MAX_ATTEMPTS = 5
+HTTP_RETRY_STATUS_CODES = {408, 429, 500, 502, 503, 504}
+HTTP_SESSION = requests.Session()
+
+
+def get_with_retry(url):
+    """Get a URL with bounded retries for temporary network failures."""
+    for attempt in range(HTTP_MAX_ATTEMPTS):
+        try:
+            response = HTTP_SESSION.get(url, timeout=HTTP_TIMEOUT)
+        except (
+            requests.exceptions.ChunkedEncodingError,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.Timeout,
+        ):
+            if attempt == HTTP_MAX_ATTEMPTS - 1:
+                raise
+        else:
+            if response.status_code not in HTTP_RETRY_STATUS_CODES:
+                return response
+            if attempt == HTTP_MAX_ATTEMPTS - 1:
+                return response
+            response.close()
+
+        delay = 2**attempt
+        logging.warning(
+            "Temporary request failure for %s. Retrying in %s seconds.",
+            url,
+            delay,
+        )
+        time.sleep(delay)
+
+    raise RuntimeError("HTTP retry loop ended without a response")
 
 
 def build_imerg_url(start_time, run="E", version="07C", liquid=True) -> str:
@@ -71,17 +108,19 @@ def download_imerg(url, path="./imerg") -> str:
         tif_name = file_name.replace(".zip", ".liquid.tif")
     file_path = os.path.join(path, tif_name)
     if not os.path.exists(file_path):
-        r = requests.get(url)
-        if r.ok:
-            os.makedirs(path, exist_ok=True)
-            if extension == ".tif":
-                with open(file_path, "wb") as f:
-                    f.write(r.content)
+        with get_with_retry(url) as response:
+            if response.ok:
+                os.makedirs(path, exist_ok=True)
+                if extension == ".tif":
+                    with open(file_path, "wb") as f:
+                        f.write(response.content)
+                else:
+                    zipped = zipfile.ZipFile(io.BytesIO(response.content))
+                    zipped.extract(tif_name, path)
             else:
-                zipped = zipfile.ZipFile(io.BytesIO(r.content))
-                zipped.extract(tif_name, path)
-        else:
-            raise RuntimeError(f"{r.status_code}: could not download {r.url}")
+                raise RuntimeError(
+                    f"{response.status_code}: could not download {response.url}"
+                )
     return file_path
 
 
@@ -91,9 +130,10 @@ def get_latest_imerg_time(run="E", version="07C"):
     for i in range(2, 17):
         t = now - pd.Timedelta(hours=i * 3)
         url = build_imerg_url(t, run=run, version=version)
-        if requests.get(url).ok:
-            url_t = pd.Timestamp(url[-43:-27].replace("-S", " "))
-            return url_t.tz_localize(None)
+        with get_with_retry(url) as response:
+            if response.ok:
+                url_t = pd.Timestamp(url[-43:-27].replace("-S", " "))
+                return url_t.tz_localize(None)
     raise RuntimeError(f"No IMERG data available at {url}")
 
 
@@ -132,13 +172,13 @@ def download_smap(url, path="./smap"):
     file_name = url[url.rfind("/") + 1 : len(url)]
     file_path = os.path.join(path, file_name)
     if not os.path.exists(file_path):
-        r = requests.get(url)
-        if r.ok:
-            os.makedirs(path, exist_ok=True)
-            with open(file_path, "wb") as f:
-                f.write(r.content)
-        else:
-            return None
+        with get_with_retry(url) as response:
+            if response.ok:
+                os.makedirs(path, exist_ok=True)
+                with open(file_path, "wb") as f:
+                    f.write(response.content)
+            else:
+                return None
     return file_path
 
 
